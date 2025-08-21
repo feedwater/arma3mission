@@ -87,8 +87,8 @@ execVM "hq_marker_system.sqf";
 
 if (hasInterface) then {
     [
+        { !isNull player && alive player && {!isNil "ace_interact_menu_fnc_createAction"} },
         { [] call RPG_fnc_initPlayer; },
-        [],
-        { !isNull player && alive player && {!isNil "ace_interact_menu_fnc_createAction"} }
+        []
     ] call CBA_fnc_waitUntilAndExecute;
 };

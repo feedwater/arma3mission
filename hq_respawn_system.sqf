@@ -107,6 +107,7 @@ HQ_UpdateRespawnPosition = {
 
 // Initialize the system
 [
+    { time > 0 && !isNil "flag_fob" && {!isNull flag_fob} },
     {
         [{ call HQ_InitRespawn; }, [], 0.5] call CBA_fnc_waitAndExecute;
 
@@ -116,9 +117,9 @@ HQ_UpdateRespawnPosition = {
                     "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
                 };
             },
+            [],
             10
         ] call CBA_fnc_addPerFrameHandler;
     },
-    [],
-    { time > 0 && !isNil "flag_fob" && {!isNull flag_fob} }
+    []
 ] call CBA_fnc_waitUntilAndExecute;
