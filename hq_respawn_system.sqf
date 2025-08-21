@@ -22,12 +22,16 @@ HQ_InitRespawn = {
     
     // Client-side respawn handler
     if (hasInterface) then {
-        // Remove old event handlers to prevent duplicates
-        player removeAllEventHandlers "Respawn";
-        player removeAllEventHandlers "Killed";
-        
+        // Remove old event handlers added by this script to prevent duplicates
+        if (!isNil "HQ_Respawn_EH") then {
+            player removeEventHandler ["Respawn", HQ_Respawn_EH];
+        };
+        if (!isNil "HQ_Killed_EH") then {
+            player removeEventHandler ["Killed", HQ_Killed_EH];
+        };
+
         // Add killed event handler to update respawn position BEFORE death
-        player addEventHandler ["Killed", {
+        HQ_Killed_EH = player addEventHandler ["Killed", {
             params ["_unit", "_killer"];
             
             // Update respawn marker position right before death
@@ -39,7 +43,7 @@ HQ_InitRespawn = {
         }];
         
         // Add respawn event handler for backup teleport and medical reset
-        player addEventHandler ["Respawn", {
+        HQ_Respawn_EH = player addEventHandler ["Respawn", {
             params ["_unit", "_corpse"];
             
             [] spawn {
