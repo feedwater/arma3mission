@@ -132,8 +132,8 @@ if (hasInterface) then {
                         [clientOwner] remoteExec ["HQ_SendMarkerToClient", 2];
                     };
                 },
-                [],
-                2
+                2,
+                []
             ] call CBA_fnc_waitAndExecute;
         },
         []
