@@ -77,7 +77,7 @@ HQ_StartLocalMovement = {
         if (_object == clipboard_fob) then {
             call HQ_InitLocalMovement; // Refresh clipboard actions
         };
-        if (_object == arsenal_fob) then {
+        if (_object == arsenal_fob && {isClass (configFile >> "CfgPatches" >> "ace_arsenal")}) then {
             [_object, true] call ace_arsenal_fnc_initBox; // Refresh arsenal
         };
         

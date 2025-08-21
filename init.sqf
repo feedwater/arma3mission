@@ -1,7 +1,9 @@
 // Define functions first
 HQ_Init = {
-    // Setup ACE Arsenal
-    [arsenal_fob, true] call ace_arsenal_fnc_initBox;
+    // Setup ACE Arsenal if available
+    if (isClass (configFile >> "CfgPatches" >> "ace_arsenal")) then {
+        [arsenal_fob, true] call ace_arsenal_fnc_initBox;
+    };
     
     // Remove only HQ relocation actions from clipboard to prevent duplicates
     // Use a flag to track if we've already added the HQ relocation action
@@ -84,8 +86,9 @@ execVM "hq_respawn_system.sqf";
 execVM "hq_marker_system.sqf";
 
 if (hasInterface) then {
-  [] spawn {
-    waitUntil { !isNull player && alive player && {!isNil "ace_interact_menu_fnc_createAction"} };
-    [] call RPG_fnc_initPlayer;
-  };
+    [
+        { [] call RPG_fnc_initPlayer; },
+        [],
+        { !isNull player && alive player && {!isNil "ace_interact_menu_fnc_createAction"} }
+    ] call CBA_fnc_waitUntilAndExecute;
 };
