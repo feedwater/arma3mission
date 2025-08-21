@@ -109,7 +109,7 @@ HQ_UpdateRespawnPosition = {
 [
     { time > 0 && !isNil "flag_fob" && {!isNull flag_fob} },
     {
-        [{ call HQ_InitRespawn; }, 0.5, []] call CBA_fnc_waitAndExecute;
+        [{ call HQ_InitRespawn; }, [], 0.5] call CBA_fnc_waitAndExecute;
 
         [
             {
