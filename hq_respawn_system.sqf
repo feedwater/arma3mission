@@ -61,9 +61,14 @@ HQ_InitRespawn = {
                     player setVelocity [0, 0, 0];
                 };
 
-                if (isClass (configFile >> "CfgPatches" >> "ace_medical")) then {
+                // Heal the player after respawn
+                if (!isNil "ace_medical_treatment_fnc_fullHealLocal") then {
+                    // Use ACE medical if available
                     [player] call ace_medical_treatment_fnc_fullHealLocal;
+                    // Make sure the unit is conscious again
+                    [player, false] call ace_medical_fnc_setUnconscious;
                 } else {
+                    // Vanilla fallback
                     player setDamage 0;
                     player setBleedingRemaining 0;
                     player setFatigue 0;
