@@ -1,145 +1,83 @@
-// HQ Respawn System - Independent faction only with ACE Medical support
-// Makes players respawn at the HQ location with full health
+/*
+    HQ Respawn System
+    -----------------
+    Teleports players to the HQ flag when they respawn and heals them.
 
-// Configuration
-HQ_RespawnDistance = 10; // Distance from flagpole to spawn (random within this radius)
+    Works with ACE medical by calling the full heal function if the mod is
+    present. The system keeps the respawn marker at the flag position so that
+    players respawn at HQ even if the base is relocated.
+*/
 
-// Define functions
-HQ_InitRespawn = {
-    // Create respawn marker for Independent (guerrila spelling is correct for Arma)
-    if (isServer) then {
-        // Delete any existing respawn marker
-        deleteMarker "respawn_guerrila";
-        
-        // Create new respawn marker at flag position
-        private _marker = createMarker ["respawn_guerrila", getPosATL flag_fob];
-        _marker setMarkerType "Empty";
-        _marker setMarkerSize [0, 0];
-        _marker setMarkerAlpha 0;
-        
-        publicVariable "respawn_guerrila"; // Sync to all clients
-    };
-    
-    // Client-side respawn handler
-    if (hasInterface) then {
-        // Remove old event handlers to prevent duplicates
-        player removeAllEventHandlers "Respawn";
-        player removeAllEventHandlers "Killed";
-        
-        // Add killed event handler to update respawn position BEFORE death
-        player addEventHandler ["Killed", {
-            params ["_unit", "_killer"];
-            
-            // Update respawn marker position right before death
+// Distance from the flag where players can appear
+HQ_RespawnDistance = 10;
+
+// Create the invisible respawn marker on the server
+if (isServer) then {
+    deleteMarker "respawn_guerrila";
+
+    private _m = createMarker ["respawn_guerrila", getPosATL flag_fob];
+    _m setMarkerType "Empty";
+    _m setMarkerAlpha 0;
+};
+
+// Add client‑side event handlers for respawn and death
+if (hasInterface) then {
+    // Prevent duplicates if the script is executed again
+    player removeAllEventHandlers "Respawn";
+    player removeAllEventHandlers "Killed";
+
+    // Ensure the marker always matches the flag location
+    player addEventHandler ["Killed", {
+        "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
+    }];
+
+    // Handle the actual respawn
+    player addEventHandler ["Respawn", {
+        params ["_unit", "_corpse"];
+
+        _unit spawn {
+            params ["_unit"];
+            // Small delay to allow the engine to finish spawning the unit
+            sleep 0.1;
+
+            // Pick a random position near the flag and move the unit there
             private _flagPos = getPosATL flag_fob;
-            "respawn_guerrila" setMarkerPos _flagPos;
-            
-            // Store position for backup teleport
-            player setVariable ["HQ_RespawnPos", _flagPos, false];
-        }];
-        
-        // Add respawn event handler for backup teleport and medical reset
-        player addEventHandler ["Respawn", {
-            params ["_unit", "_corpse"];
-            
-            [] spawn {
-                // Very short delay to ensure spawn is complete
-                sleep 0.1;
-                
-                // Get flag position
-                private _flagPos = player getVariable ["HQ_RespawnPos", getPosATL flag_fob];
-                
-                // Check if player spawned at wrong location (near corpse)
-                if ((player distance _flagPos) > 50) then {
-                    // Force teleport to HQ
-                    private _randomAngle = random 360;
-                    private _randomDistance = random HQ_RespawnDistance;
-                    
-                    private _respawnPos = [
-                        (_flagPos select 0) + (_randomDistance * sin _randomAngle),
-                        (_flagPos select 1) + (_randomDistance * cos _randomAngle),
-                        (_flagPos select 2)
-                    ];
-                    
-                    // Find safe position
-                    _respawnPos = _respawnPos findEmptyPosition [0, 20, typeOf player];
-                    if (count _respawnPos == 0) then {
-                        _respawnPos = _flagPos;
-                    };
-                    
-                    // Teleport with damage protection
-                    player allowDamage false;
-                    player setPosATL _respawnPos;
-                    player setDir (random 360);
-                    player setVelocity [0, 0, 0];
-                };
-                
-                // ACE Medical - Full heal
-                if (isClass (configFile >> "CfgPatches" >> "ace_medical")) then {
-                    // ACE3 Medical full heal - this handles everything
-                    [player] call ace_medical_treatment_fnc_fullHealLocal;
-                } else {
-                    // Fallback for vanilla medical or other medical systems
-                    player setDamage 0;
-                    player setBleedingRemaining 0;
-                    player setFatigue 0;
-                };
-                
-                // Additional health resets
-                player allowDamage false;
-                player setDamage 0;
-                player setBleedingRemaining 0;
-                player setFatigue 0;
-                player setStamina 1;
-                
-                // Clear any ongoing effects
-                [] spawn {
-                    sleep 1;
-                    player allowDamage true;
-                    hint "You have respawned at HQ Base - fully healed";
-                };
-                
-                // Clear stored position
-                player setVariable ["HQ_RespawnPos", nil, false];
+            private _angle   = random 360;
+            private _dist    = random HQ_RespawnDistance;
+            private _pos     = [
+                (_flagPos#0) + (_dist * sin _angle),
+                (_flagPos#1) + (_dist * cos _angle),
+                _flagPos#2
+            ];
+
+            _pos = _pos findEmptyPosition [0,20,typeOf _unit];
+            if (count _pos == 0) then {_pos = _flagPos;};
+
+            _unit allowDamage false;
+            _unit setPosATL _pos;
+            _unit setDir (random 360);
+            _unit setVelocity [0,0,0];
+
+            // Heal the player. Use ACE function if it exists.
+            if (!isNil "ace_medical_treatment_fnc_fullHealLocal") then {
+                [_unit] call ace_medical_treatment_fnc_fullHealLocal;
+            } else {
+                _unit setDamage 0;
+                _unit setBleedingRemaining 0;
             };
-        }];
-    };
-    
-    // Update marker position initially
-    call HQ_UpdateRespawnPosition;
+
+            _unit allowDamage true;
+        };
+    }];
 };
 
-HQ_UpdateRespawnPosition = {
-    if (!isNil "flag_fob" && {!isNull flag_fob}) then {
-        private _flagPos = getPosATL flag_fob;
-        "respawn_guerrila" setMarkerPos _flagPos;
-        "respawn_guerrila" setMarkerAlpha 0; // Keep invisible
-    } else {
-        systemChat "Warning: flag_fob not found!";
-    };
-};
-
-// Initialize the system
+// Keep the respawn marker positioned at the flag in case it moves
 [] spawn {
-    // Wait for mission start and flag to exist
-    waitUntil {time > 0 && !isNil "flag_fob" && {!isNull flag_fob}};
-    
-    // Small delay for stability
-    sleep 0.5;
-    
-    // Initialize respawn system
-    call HQ_InitRespawn;
-    
-    // Periodic marker position update (in case something goes wrong)
-    [] spawn {
-        while {true} do {
-            sleep 10;
-            if (!isNil "flag_fob" && {!isNull flag_fob}) then {
-                "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
-            };
+    while {true} do {
+        sleep 10;
+        if (!isNull flag_fob) then {
+            "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
         };
     };
 };
 
-// Debug command (run in debug console if needed)
-// "respawn_guerrila" setMarkerType "hd_flag"; // Makes marker visible for testing
