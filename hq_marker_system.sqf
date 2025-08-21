@@ -124,6 +124,7 @@ if (isServer) then {
 // Handle player JIP (Join In Progress)
 if (hasInterface) then {
     [
+        { !isNull player && time > 1 },
         {
             [
                 {
@@ -135,8 +136,7 @@ if (hasInterface) then {
                 2
             ] call CBA_fnc_waitAndExecute;
         },
-        [],
-        { !isNull player && time > 1 }
+        []
     ] call CBA_fnc_waitUntilAndExecute;
 };
 
