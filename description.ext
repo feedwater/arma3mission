@@ -15,7 +15,7 @@ class CfgRemoteExec
         mode = 2;
         jip = 1;
         class RPG_fnc_requestStats { allowedTargets = 2; };
-        class RPG_fnc_changeSkill { allowedTargets = 2; };
+        class RPG_fnc_increaseSkill { allowedTargets = 2; };
         class RPG_fnc_applyStats { allowedTargets = 1; };
     };
 };
