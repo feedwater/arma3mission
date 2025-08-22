@@ -78,6 +78,8 @@ HQ_InitRespawn = {
                 if (isClass (configFile >> "CfgPatches" >> "ace_medical")) then {
                     // ACE3 Medical full heal - this handles everything
                     [player] call ace_medical_treatment_fnc_fullHealLocal;
+                    // Ensure ACE doesn't keep players invulnerable after respawn
+                    player setVariable ["ace_medical_preventInstaDeath", false, true];
                 } else {
                     // Fallback for vanilla medical or other medical systems
                     player setDamage 0;
