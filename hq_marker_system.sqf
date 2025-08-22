@@ -89,20 +89,13 @@ HQ_CleanupMarker = {
 
 // Start automatic update loop (SERVER ONLY)
 HQ_StartUpdateLoop = {
-    HQ_UpdateHandle = [
-        {
-            params ["_args", "_id"];
-            if (!isNull HQ_FLAG_OBJECT && getMarkerType HQ_MARKER_NAME != "") then {
-                call HQ_UpdateMarker;
-            } else {
-                [_id] call CBA_fnc_removePerFrameHandler;
-                diag_log "HQ Marker System: Update loop terminated";
-            };
-        },
-        HQ_UPDATE_INTERVAL,
-        [],
-        0
-    ] call CBA_fnc_addPerFrameHandler;
+    HQ_UpdateHandle = [] spawn {
+        while {!isNull HQ_FLAG_OBJECT && getMarkerType HQ_MARKER_NAME != ""} do {
+            call HQ_UpdateMarker;
+            sleep HQ_UPDATE_INTERVAL;
+        };
+        diag_log "HQ Marker System: Update loop terminated";
+    };
 };
 
 // Initialize the system
@@ -124,21 +117,15 @@ if (isServer) then {
 
 // Handle player JIP (Join In Progress)
 if (hasInterface) then {
-    [
-        { !isNull player && time > 1 },
-        {
-            [
-                {
-                    if (getMarkerType HQ_MARKER_NAME == "") then {
-                        [clientOwner] remoteExec ["HQ_SendMarkerToClient", 2];
-                    };
-                },
-                2,
-                []
-            ] call CBA_fnc_waitAndExecute;
-        },
-        []
-    ] call CBA_fnc_waitUntilAndExecute;
+    [] spawn {
+        waitUntil {!isNull player && time > 1};
+        sleep 2; // Allow time for initial sync
+        
+        // Request marker update from server if marker doesn't exist
+        if (getMarkerType HQ_MARKER_NAME == "") then {
+            [clientOwner] remoteExec ["HQ_SendMarkerToClient", 2];
+        };
+    };
 };
 
 // Server function to send marker data to specific client
@@ -151,4 +138,3 @@ HQ_SendMarkerToClient = {
         diag_log format ["HQ Marker System: Sent marker data to client %1", _clientId];
     };
 };
-
