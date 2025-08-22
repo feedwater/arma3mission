@@ -99,8 +99,8 @@ HQ_StartUpdateLoop = {
                 diag_log "HQ Marker System: Update loop terminated";
             };
         },
-        [],
-        HQ_UPDATE_INTERVAL
+        HQ_UPDATE_INTERVAL,
+        []
     ] call CBA_fnc_addPerFrameHandler;
 };
 
