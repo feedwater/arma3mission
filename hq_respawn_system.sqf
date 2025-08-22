@@ -1,6 +1,3 @@
-// HQ Respawn System - Independent faction only with ACE Medical support
-// Teleports players to HQ on respawn and restores health
-
 HQ_RespawnDistance = 10; // Random offset radius from flagpole
 
 HQ_InitRespawn = {
@@ -15,6 +12,7 @@ HQ_InitRespawn = {
     if (hasInterface) then {
         player removeAllEventHandlers "Respawn";
         player removeAllEventHandlers "Killed";
+        player removeAllEventHandlers "HandleDamage";
 
         player addEventHandler ["Killed", {
             "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
@@ -55,6 +53,14 @@ HQ_InitRespawn = {
                 hint "You have respawned at HQ Base - fully healed";
             };
         }];
+
+        player addEventHandler ["HandleDamage", {
+            params ["_unit", "_selection", "_damage"];
+            if (isClass (configFile >> "CfgPatches" >> "ace_medical")) then {
+                _unit setVariable ["ace_medical_preventInstaDeath", false, true];
+            };
+            _damage;
+        }];
     };
 
     call HQ_UpdateRespawnPosition;
@@ -83,4 +89,3 @@ HQ_UpdateRespawnPosition = {
         };
     };
 };
-
