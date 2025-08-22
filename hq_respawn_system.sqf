@@ -1,6 +1,3 @@
-// HQ Respawn System - Independent faction only with ACE Medical support
-// Teleports players to HQ on respawn and restores health
-
 HQ_RespawnDistance = 10; // Random offset radius from flagpole
 
 HQ_InitRespawn = {
@@ -92,7 +89,3 @@ HQ_UpdateRespawnPosition = {
         };
     };
 };
-
-// Debug command (run in debug console if needed)
-// "respawn_guerrila" setMarkerType "hd_flag"; // Makes marker visible for testing
-
