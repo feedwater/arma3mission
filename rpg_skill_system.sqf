@@ -183,7 +183,7 @@ RPG_fnc_initPlayer = {
             format ["RPG_inc_%1", _name],
             format ["Increase %1", _name],
             "",
-            { [_idx] call RPG_fnc_increaseSkillRequest },
+            compile format ["[%1] call RPG_fnc_increaseSkillRequest", _idx],
             {true}
         ] call ace_interact_menu_fnc_createAction;
         [player, 1, ["ACE_SelfActions", "RPG_root"], _inc] call ace_interact_menu_fnc_addActionToObject;
