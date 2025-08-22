@@ -7,3 +7,15 @@ class Header
 
 respawn = 3;
 respawnDelay = 5;
+
+class CfgRemoteExec
+{
+    class Functions
+    {
+        mode = 2;
+        jip = 1;
+        class RPG_fnc_requestStats { allowedTargets = 2; };
+        class RPG_fnc_changeSkill { allowedTargets = 2; };
+        class RPG_fnc_applyStats { allowedTargets = 1; };
+    };
+};
