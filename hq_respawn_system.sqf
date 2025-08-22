@@ -84,6 +84,3 @@ HQ_UpdateRespawnPosition = {
     };
 };
 
-// Debug command (run in debug console if needed)
-// "respawn_guerrila" setMarkerType "hd_flag"; // Makes marker visible for testing
-
