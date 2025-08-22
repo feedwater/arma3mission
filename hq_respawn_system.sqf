@@ -117,8 +117,9 @@ HQ_UpdateRespawnPosition = {
                     "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
                 };
             },
+            10,
             [],
-            10
+            0
         ] call CBA_fnc_addPerFrameHandler;
     },
     []
