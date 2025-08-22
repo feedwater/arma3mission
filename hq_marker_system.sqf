@@ -100,7 +100,8 @@ HQ_StartUpdateLoop = {
             };
         },
         HQ_UPDATE_INTERVAL,
-        []
+        [],
+        0
     ] call CBA_fnc_addPerFrameHandler;
 };
 
