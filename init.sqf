@@ -78,15 +78,15 @@ HQ_OriginalPositions = [];
 // Initialize HQ after everything is defined
 call HQ_Init;
 
-// Execute additional HQ systems
 execVM "hq_local_movement.sqf";
 execVM "hq_respawn_system.sqf";
 execVM "hq_marker_system.sqf";
 
-[] execVM "rpg_skill_system.sqf";
+call compile preprocessFileLineNumbers "rpg_skill_system.sqf";
 if (isServer) then {
     [] call RPG_fnc_initServer;
 };
+
 
 
 if (hasInterface) then {
