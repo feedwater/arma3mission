@@ -19,76 +19,90 @@ HQ_InitRespawn = {
         
         publicVariable "respawn_guerrila"; // Sync to all clients
     };
-
- // Client-side respawn handler
+    
+    // Client-side respawn handler
     if (hasInterface) then {
+        // Remove old event handlers to prevent duplicates
+        player removeAllEventHandlers "Respawn";
+        player removeAllEventHandlers "Killed";
+        
         // Add killed event handler to update respawn position BEFORE death
-        ["Killed", {
+        player addEventHandler ["Killed", {
             params ["_unit", "_killer"];
-
+            
+            // Update respawn marker position right before death
             private _flagPos = getPosATL flag_fob;
             "respawn_guerrila" setMarkerPos _flagPos;
+            
+            // Store position for backup teleport
             player setVariable ["HQ_RespawnPos", _flagPos, false];
-        }] call CBA_fnc_addPlayerEventHandler;
-
+        }];
+        
         // Add respawn event handler for backup teleport and medical reset
-        ["Respawn", {
+        player addEventHandler ["Respawn", {
             params ["_unit", "_corpse"];
-
+            
             [] spawn {
+                // Very short delay to ensure spawn is complete
                 sleep 0.1;
-
+                
+                // Get flag position
                 private _flagPos = player getVariable ["HQ_RespawnPos", getPosATL flag_fob];
-
+                
+                // Check if player spawned at wrong location (near corpse)
                 if ((player distance _flagPos) > 50) then {
+                    // Force teleport to HQ
                     private _randomAngle = random 360;
                     private _randomDistance = random HQ_RespawnDistance;
-
+                    
                     private _respawnPos = [
                         (_flagPos select 0) + (_randomDistance * sin _randomAngle),
                         (_flagPos select 1) + (_randomDistance * cos _randomAngle),
                         (_flagPos select 2)
                     ];
-
+                    
+                    // Find safe position
                     _respawnPos = _respawnPos findEmptyPosition [0, 20, typeOf player];
                     if (count _respawnPos == 0) then {
                         _respawnPos = _flagPos;
                     };
-
+                    
+                    // Teleport with damage protection
                     player allowDamage false;
                     player setPosATL _respawnPos;
                     player setDir (random 360);
                     player setVelocity [0, 0, 0];
                 };
-
-                // Heal the player after respawn
-                if (!isNil "ace_medical_treatment_fnc_fullHealLocal") then {
-                    // Use ACE medical if available
+                
+                // ACE Medical - Full heal
+                if (isClass (configFile >> "CfgPatches" >> "ace_medical")) then {
+                    // ACE3 Medical full heal - this handles everything
                     [player] call ace_medical_treatment_fnc_fullHealLocal;
-                    // Make sure the unit is conscious again
-                    [player, false] call ace_medical_fnc_setUnconscious;
                 } else {
-                    // Vanilla fallback
+                    // Fallback for vanilla medical or other medical systems
                     player setDamage 0;
                     player setBleedingRemaining 0;
                     player setFatigue 0;
                 };
-
+                
+                // Additional health resets
                 player allowDamage false;
                 player setDamage 0;
                 player setBleedingRemaining 0;
                 player setFatigue 0;
                 player setStamina 1;
-
+                
+                // Clear any ongoing effects
                 [] spawn {
                     sleep 1;
                     player allowDamage true;
                     hint "You have respawned at HQ Base - fully healed";
                 };
-
+                
+                // Clear stored position
                 player setVariable ["HQ_RespawnPos", nil, false];
             };
-        }] call CBA_fnc_addPlayerEventHandler;
+        }];
     };
     
     // Update marker position initially
@@ -106,28 +120,26 @@ HQ_UpdateRespawnPosition = {
 };
 
 // Initialize the system
-[
-    { time > 0 && !isNil "flag_fob" && {!isNull flag_fob} },
-    {
-        [{ call HQ_InitRespawn; }, [], 0.5] call CBA_fnc_waitAndExecute;
+[] spawn {
+    // Wait for mission start and flag to exist
+    waitUntil {time > 0 && !isNil "flag_fob" && {!isNull flag_fob}};
+    
+    // Small delay for stability
+    sleep 0.5;
+    
+    // Initialize respawn system
+    call HQ_InitRespawn;
+    
+    // Periodic marker position update (in case something goes wrong)
+    [] spawn {
+        while {true} do {
+            sleep 10;
+            if (!isNil "flag_fob" && {!isNull flag_fob}) then {
+                "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
+            };
+        };
+    };
+};
 
-        [
-            {
-                if (!isNil "flag_fob" && {!isNull flag_fob}) then {
-                    "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
-                };
-            },
-            10,
-        [
-            {
-                if (!isNil "flag_fob" && {!isNull flag_fob}) then {
-                    "respawn_guerrila" setMarkerPos (getPosATL flag_fob);
-                };
-            },
-            10,
-            [],
-            0
-        ] call CBA_fnc_addPerFrameHandler;
-    },
-    []
-] call CBA_fnc_waitUntilAndExecute;
+// Debug command (run in debug console if needed)
+// "respawn_guerrila" setMarkerType "hd_flag"; // Makes marker visible for testing
