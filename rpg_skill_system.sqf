@@ -9,6 +9,15 @@ RPG_fnc_initServer = {
     RPG_PlayerStats = profileNamespace getVariable ["RPG_PlayerStats", []];
     if (isNil "RPG_PlayerStats") then {RPG_PlayerStats = []};
 
+    // migrate old entries lacking XP or point fields
+    {
+        if ((count _x) < 7) then {
+            _x append [0,0];
+            RPG_PlayerStats set [_forEachIndex, _x];
+        };
+    } forEach RPG_PlayerStats;
+    [] call RPG_fnc_saveStats;
+
     addMissionEventHandler ["EntityKilled", {
         params ["_unit", "_killer", "_instigator"];
         if (isPlayer _instigator) then {
@@ -27,7 +36,14 @@ RPG_fnc_saveStats = {
 RPG_fnc_getEntry = {
     params ["_uid"];
     {
-        if ((_x select 0) isEqualTo _uid) exitWith { _x };
+        if ((_x select 0) isEqualTo _uid) exitWith {
+            if ((count _x) < 7) then {
+                _x append [0,0];
+                RPG_PlayerStats set [_forEachIndex, _x];
+                [] call RPG_fnc_saveStats;
+            };
+            _x
+        };
     } forEach RPG_PlayerStats;
 };
 
@@ -77,7 +93,7 @@ RPG_fnc_increaseSkill = {
     private _points = _entry select 6;
     if (_points <= 0) exitWith {};
     private _val = (_entry select _skillIndex) + 1;
-    _val = _val max 1 min RPG_MAX_LEVEL;
+    if (_val > RPG_MAX_LEVEL) exitWith {};
     _entry set [_skillIndex, _val];
     _entry set [6, _points - 1];
     [] call RPG_fnc_saveStats;
@@ -90,6 +106,8 @@ RPG_fnc_increaseSkill = {
 // Client: apply stats received from server
 RPG_fnc_applyStats = {
     params ["_entry"];
+    if (isNil "_entry" || { !(_entry isEqualType []) }) exitWith {};
+    if ((count _entry) < 7) then { _entry append [0,0]; };
     private _stats = _entry select [1,4];
     private _xp = _entry select 5;
     private _points = _entry select 6;
