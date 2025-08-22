@@ -1,12 +1,20 @@
 // Basic RPG skill system with ACE integration and persistence
 
-RPG_DEFAULT_STATS = [1,1,1,1];
+// Stats structure: [uid, endurance, carry, speed, accuracy, xp, points]
+RPG_DEFAULT_STATS = [1,1,1,1,0,0];
 RPG_MAX_LEVEL = 5;
 
-// Server initialization: load saved stats
+// Server initialization: load saved stats and setup XP handler
 RPG_fnc_initServer = {
     RPG_PlayerStats = profileNamespace getVariable ["RPG_PlayerStats", []];
     if (isNil "RPG_PlayerStats") then {RPG_PlayerStats = []};
+
+    addMissionEventHandler ["EntityKilled", {
+        params ["_unit", "_killer", "_instigator"];
+        if (isPlayer _instigator) then {
+            [getPlayerUID _instigator, 10] call RPG_fnc_addXP;
+        };
+    }];
 };
 
 // Save stats to profileNamespace
@@ -35,17 +43,43 @@ RPG_fnc_requestStats = {
     [_entry] remoteExec ["RPG_fnc_applyStats", _player];
 };
 
-// Server: change a skill value
-RPG_fnc_changeSkill = {
-    params ["_uid", "_skillIndex", "_delta"];
+// Server: add XP and award skill points
+RPG_fnc_addXP = {
+    params ["_uid", "_xp"];
     private _entry = [_uid] call RPG_fnc_getEntry;
     if (isNil "_entry") then {
         _entry = [_uid] + RPG_DEFAULT_STATS;
         RPG_PlayerStats pushBack _entry;
     };
-    private _val = (_entry select _skillIndex) + _delta;
+    private _curXP = (_entry select 5) + _xp;
+    private _points = _entry select 6;
+    while {_curXP >= 100} do {
+        _curXP = _curXP - 100;
+        _points = _points + 1;
+    };
+    _entry set [5, _curXP];
+    _entry set [6, _points];
+    [] call RPG_fnc_saveStats;
+    private _plr = [_uid] call BIS_fnc_getUnitByUID;
+    if (!isNull _plr) then {
+        [_entry] remoteExec ["RPG_fnc_applyStats", _plr];
+    };
+};
+
+// Server: increase a skill value, spending points
+RPG_fnc_increaseSkill = {
+    params ["_uid", "_skillIndex"];
+    private _entry = [_uid] call RPG_fnc_getEntry;
+    if (isNil "_entry") then {
+        _entry = [_uid] + RPG_DEFAULT_STATS;
+        RPG_PlayerStats pushBack _entry;
+    };
+    private _points = _entry select 6;
+    if (_points <= 0) exitWith {};
+    private _val = (_entry select _skillIndex) + 1;
     _val = _val max 1 min RPG_MAX_LEVEL;
     _entry set [_skillIndex, _val];
+    _entry set [6, _points - 1];
     [] call RPG_fnc_saveStats;
     private _plr = [_uid] call BIS_fnc_getUnitByUID;
     if (!isNull _plr) then {
@@ -57,14 +91,18 @@ RPG_fnc_changeSkill = {
 RPG_fnc_applyStats = {
     params ["_entry"];
     private _stats = _entry select [1,4];
+    private _xp = _entry select 5;
+    private _points = _entry select 6;
     player setVariable ["RPG_stats", _stats];
+    player setVariable ["RPG_xp", _xp];
+    player setVariable ["RPG_points", _points];
     [player] call RPG_fnc_updateTraits;
 };
 
 // Apply traits to unit based on stats
 RPG_fnc_updateTraits = {
     params ["_unit"];
-    private _stats = _unit getVariable ["RPG_stats", RPG_DEFAULT_STATS];
+    private _stats = _unit getVariable ["RPG_stats", RPG_DEFAULT_STATS select [0,4]];
     private _endurance = _stats select 0;
     private _carry = _stats select 1;
     private _speed = _stats select 2;
@@ -74,7 +112,7 @@ RPG_fnc_updateTraits = {
     if (isNil {_unit getVariable "RPG_hdEH"}) then {
         _unit setVariable ["RPG_hdEH", _unit addEventHandler ["HandleDamage", {
             params ["_u", "", "_d"];
-            private _st = _u getVariable ["RPG_stats", RPG_DEFAULT_STATS];
+            private _st = _u getVariable ["RPG_stats", RPG_DEFAULT_STATS select [0,4]];
             private _end = _st select 0;
             private _mult = 1 - ((_end - 1) * 0.05);
             _d * _mult;
@@ -93,14 +131,21 @@ RPG_fnc_updateTraits = {
 
 // Display current stats
 RPG_fnc_showStats = {
-    private _s = player getVariable ["RPG_stats", RPG_DEFAULT_STATS];
-    hint format ["Endurance: %1\nCarry: %2\nSpeed: %3\nAccuracy: %4", _s select 0, _s select 1, _s select 2, _s select 3];
+    private _s = player getVariable ["RPG_stats", RPG_DEFAULT_STATS select [0,4]];
+    private _xp = player getVariable ["RPG_xp", 0];
+    private _pts = player getVariable ["RPG_points", 0];
+    hint format [
+        "Endurance: %1\nCarry: %2\nSpeed: %3\nAccuracy: %4\nXP: %5\nSkill Points: %6",
+        _s select 0, _s select 1, _s select 2, _s select 3, _xp, _pts
+    ];
 };
 
-// Client: request server to change skill
-RPG_fnc_changeSkillRequest = {
-    params ["_skill", "_delta"];
-    [getPlayerUID player, _skill + 1, _delta] remoteExec ["RPG_fnc_changeSkill", 2];
+// Client: request server to increase skill
+RPG_fnc_increaseSkillRequest = {
+    params ["_skill"];
+    private _pts = player getVariable ["RPG_points", 0];
+    if (_pts <= 0) exitWith { hint "No skill points available" };
+    [getPlayerUID player, _skill + 1] remoteExec ["RPG_fnc_increaseSkill", 2];
 };
 
 // Client initialization
@@ -116,9 +161,13 @@ RPG_fnc_initPlayer = {
     {
         private _idx = _forEachIndex;
         private _name = _x;
-        private _inc = [format ["RPG_inc_%1", _name], format ["Increase %1", _name], "", { [_idx, 1] call RPG_fnc_changeSkillRequest }, {true}] call ace_interact_menu_fnc_createAction;
+        private _inc = [
+            format ["RPG_inc_%1", _name],
+            format ["Increase %1", _name],
+            "",
+            { [_idx] call RPG_fnc_increaseSkillRequest },
+            {true}
+        ] call ace_interact_menu_fnc_createAction;
         [player, 1, ["ACE_SelfActions", "RPG_root"], _inc] call ace_interact_menu_fnc_addActionToObject;
-        private _dec = [format ["RPG_dec_%1", _name], format ["Decrease %1", _name], "", { [_idx, -1] call RPG_fnc_changeSkillRequest }, {true}] call ace_interact_menu_fnc_createAction;
-        [player, 1, ["ACE_SelfActions", "RPG_root"], _dec] call ace_interact_menu_fnc_addActionToObject;
     } forEach ["Endurance", "Carry", "Speed", "Accuracy"];
 };
