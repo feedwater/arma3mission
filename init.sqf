@@ -83,6 +83,12 @@ execVM "hq_local_movement.sqf";
 execVM "hq_respawn_system.sqf";
 execVM "hq_marker_system.sqf";
 
+[] execVM "rpg_skill_system.sqf";
+if (isServer) then {
+    [] call RPG_fnc_initServer;
+};
+
+
 if (hasInterface) then {
   [] spawn {
     waitUntil { !isNull player && alive player && {!isNil "ace_interact_menu_fnc_createAction"} };
